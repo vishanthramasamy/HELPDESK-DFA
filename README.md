@@ -1,5 +1,7 @@
 # HELPDESK-DFA — Orbitdesk support workspace
 
+ https://helpdesk-dfa.vercel.app/
+ 
 A full-stack helpdesk ticket lifecycle application with a polished Orbit Help Desk inspired workspace, role-based access, persistent ticket history, and a backend-enforced deterministic finite automaton (DFA).
 
 ## Project status and URLs
