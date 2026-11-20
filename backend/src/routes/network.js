@@ -1,0 +1,5 @@
+import { Router } from 'express';
+import mongoose from 'mongoose';
+const router = Router();
+router.get('/status', (_req, res) => res.json({ api: 'connected', database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected', timestamp: new Date().toISOString() }));
+export default router;

@@ -1,45 +1,60 @@
-# Helpdesk DFA — deployment starter
+# HELPDESK-DFA — Orbitdesk support workspace
 
-## Analysis and architecture
+A full-stack helpdesk ticket lifecycle application with a polished Orbit Help Desk inspired workspace, role-based access, persistent ticket history, and a backend-enforced deterministic finite automaton (DFA).
 
-This request describes a full academic MERN application; the supplied workspace had no application source to extend. This folder is a deployment foundation, not a completed ticket lifecycle system. It supplies a small React/Vite frontend, SPA rewrite, API connectivity screen, Express startup, Atlas connection, health endpoint, and deployment guide. Authentication, ticket CRUD, role authorization, schemas, DFA transitions/audit logs, charts, and academic pages remain to be implemented before this can be called the requested full system.
+## Project status and URLs
 
-### Subject integration
+- **Live frontend:** Not deployed yet — URL pending.
+- **Backend API:** Not deployed yet — URL pending.
+- **Database:** MongoDB Atlas, configured only on the backend through `MONGODB_URI`. No database credentials belong in this repository or frontend.
+- **Local frontend:** `http://localhost:5173`
+- **Local backend:** `http://localhost:5000` (`/api/health` checks API and database status).
 
-- **Full stack web development:** React/Vite sends JSON REST requests to an Express API. MongoDB/Mongoose is the persistence layer. Authentication and authorization belong on the backend.
-- **Computer networks:** Browser-to-Vercel and browser-to-Render use HTTPS; the browser uses HTTP REST semantics over TLS/TCP/IP and DNS resolves service hostnames. The OS networking stack implements TCP/IP; this project does not implement those protocols itself.
-- **FLAT:** The backend must own the DFA state transition function and reject undefined transitions. The client may display the definition or simulation results but cannot authorize lifecycle changes.
+Cloud deployment is not claimed until the deployed frontend, backend, and database have been checked. See [the deployment guide](documentation/deployment-guide.md).
 
-### Architecture
+## Features
 
-```mermaid
-flowchart TD
-  U[User / Browser] -->|HTTPS, React SPA| V[Vercel]
-  V -->|HTTPS REST JSON| R[Render: Node + Express]
-  R -->|Mongoose TLS connection| M[(MongoDB Atlas)]
-```
-
-### DFA definition to implement
-
-`M = (Q, Σ, δ, q0, F)` where `Q={OPEN, ASSIGNED, IN_PROGRESS, RESOLVED, CLOSED, CANCELLED}`, `Σ={ASSIGN, START, REASSIGN, RESOLVE, REOPEN, CLOSE, CANCEL, UNASSIGN}`, `q0=OPEN`, and `F={CLOSED,CANCELLED}`. Defined transitions: OPEN/ASSIGN→ASSIGNED; OPEN/CANCEL→CANCELLED; ASSIGNED/START→IN_PROGRESS; ASSIGNED/UNASSIGN→OPEN; ASSIGNED/REASSIGN→ASSIGNED; IN_PROGRESS/REASSIGN→ASSIGNED; IN_PROGRESS/RESOLVE→RESOLVED; RESOLVED/REOPEN→IN_PROGRESS; RESOLVED/CLOSE→CLOSED. Every omitted pair must reject. A separate explicit product decision is needed for whether CANCELLED is considered accepting (the brief says both cancelled and closed are final). Persist each successful transition atomically with the ticket update; separately record rejected attempts.
-
-### Database plan
-
-Use `User`, `Ticket`, `TicketHistory`, `AuditLog`, and `Comment` Mongoose models with ObjectId references. Add unique indexes for normalized user email and ticketId; indexes for `(createdBy, createdAt)`, `(assignedTo, currentState)`, and `(ticketId, timestamp)` on history/comments/audit. Set schema validation and timestamps. These models and indexes are planned, not yet implemented in this starter.
+- React, Vite, React Router, and responsive Orbitdesk-style UI.
+- Express REST API with JWT authentication and USER, AGENT, and ADMIN roles.
+- MongoDB/Mongoose models for users, tickets, lifecycle history, comments, and audit logs.
+- DFA-controlled lifecycle transitions; invalid transitions are rejected server-side.
+- Ticket creation, assignment/reassignment, comments, activity history, team management, dashboard counts, and DFA simulation.
+- Vercel SPA rewrites and Render-compatible backend startup.
 
 ## Run locally
 
-1. Install Node.js LTS and MongoDB locally or create an Atlas cluster.
-2. In `backend`, run `npm install`, copy `.env.example` to `.env`, set `MONGODB_URI` and a long random `JWT_SECRET`, then run `npm run dev`.
-3. In `frontend`, run `npm install`, copy `.env.example` to `.env`, set `VITE_API_URL=http://localhost:5000/api`, then run `npm run dev`.
-4. Open Vite’s printed local URL; `/health` displays API connectivity.
+Requirements: Node.js 20 or newer and a MongoDB connection string (Atlas works; a local MongoDB replica set is needed for multi-document transaction support).
 
-Never commit `.env`. The supplied examples contain placeholders only.
+1. In a terminal, enter `backend`, run `npm install`, and copy `.env.example` to `.env`.
+2. Set `MONGODB_URI` to your database connection string and replace `JWT_SECRET` with a long random secret. Keep `CLIENT_URL=http://localhost:5173`, `NODE_ENV=development`, and `PORT=5000` for local use.
+3. In the backend directory run `npm run seed` once to add the optional demo accounts, then `npm run dev`.
+4. In a second terminal, enter `frontend`, run `npm install`, and copy `.env.example` to `.env`.
+5. Set `VITE_API_URL=http://localhost:5000/api`, then run `npm run dev` and open the Vite URL.
+
+Optional demo accounts (created only by the explicit seed command): `admin@helpdesk.local`, `agent@helpdesk.local`, and `user@helpdesk.local`. Their shared development password is `Helpdesk123!`. Do not seed these accounts in a public production database; create a production administrator through a controlled process.
+
+## DFA lifecycle
+
+States: `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`, `CANCELLED`. Initial state: `OPEN`. Accepting terminal states: `CLOSED` and `CANCELLED`.
+
+| Current state | Input | Next state |
+|---|---|---|
+| OPEN | ASSIGN | ASSIGNED |
+| OPEN | CANCEL | CANCELLED |
+| ASSIGNED | START | IN_PROGRESS |
+| ASSIGNED | UNASSIGN | OPEN |
+| ASSIGNED | REASSIGN | ASSIGNED |
+| IN_PROGRESS | REASSIGN | ASSIGNED |
+| IN_PROGRESS | RESOLVE | RESOLVED |
+| RESOLVED | REOPEN | IN_PROGRESS |
+| RESOLVED | CLOSE | CLOSED |
+
+Any undefined state/input pair is rejected and recorded in the audit log. Role and ticket ownership checks are also enforced by the API.
 
 ## Cloud deployment
 
-Read [deployment-guide.md](documentation/deployment-guide.md). No services have been deployed, and no live URLs are known. Replace the placeholders in this README only after deployment and smoke testing.
+Deploy the backend as a Render Web Service with root directory `backend`, build command `npm install`, start command `npm start`, and health path `/api/health`. Deploy the Vite frontend on Vercel with root directory `frontend`, build command `npm run build`, output `dist`, and SPA rewrites from `vercel.json`. Set the actual Render origin in Render `CLIENT_URL` and the actual Render API URL ending in `/api` in Vercel `VITE_API_URL`. Full MongoDB Atlas, Render, Vercel, environment, CORS, and verification steps are in [documentation/deployment-guide.md](documentation/deployment-guide.md).
 
-- Live frontend: **Not deployed — URL pending**
-- Backend API: **Not deployed — URL pending**
-- Database: MongoDB Atlas planned; credentials must stay in Render environment settings.
+## Security
+
+Never commit `.env` files, API tokens, JWT secrets, or Atlas URIs. The `.gitignore` excludes local environment files. If a database password has been shared in chat, a screenshot, or any public location, rotate it in Atlas before production use.
